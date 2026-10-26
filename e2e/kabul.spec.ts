@@ -10,6 +10,10 @@ const BOS = '[data-testid^="hucre-"]:not(.dolu)';
 
 const id = (n: string) => `[data-testid="${n}"]`;
 
+// Uygulama yokken eylemler (click vb.) varsayılan olarak test zaman aşımına kadar (30 sn) bekler;
+// zaman aşımı "beklenen kırmızı" sayılmaz. Bu yüzden BEKLEYEN iken eylemler hızlı hata verir.
+test.use({ actionTimeout: BEKLEYEN ? 2000 : 0 });
+
 async function ac(page: Page, seed = 7) {
   await page.clock.install({ time: new Date('2026-01-01T12:00:00Z') });
   await page.goto(`./?seed=${seed}`);
