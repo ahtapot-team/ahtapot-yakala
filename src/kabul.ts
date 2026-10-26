@@ -10,6 +10,6 @@ import { it } from 'vitest';
  * #4'ü (oyun) yapan geliştirici uygulama bitince bunu `false` yapar (ve e2e/kabul.ts'deki
  * BEKLEYEN'i de). Unutursa CI "test kırmızı olmalıydı ama geçti" diye kırmızı olur — bu bilerek.
  */
-export const BEKLEYEN = true;
+export const BEKLEYEN = false;
 
 export const kabul = BEKLEYEN ? it.fails : it;

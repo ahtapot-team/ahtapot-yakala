@@ -1,6 +1,5 @@
-// OYUN MANTIĞI ARAYÜZÜ (sözleşme) — kabul testleri (#3) bu arayüze göre yazıldı.
-// Bu dosya şimdilik yalnızca ARAYÜZÜ tanımlar; gövde #4'te (frontend) yazılır.
-// Davranış kuralları ve ayrıntılar: docs/PRD.md ve src/oyun.test.ts.
+// OYUN MANTIĞI (sözleşme + gövde). Kabul testleri: src/oyun.test.ts. Kurallar: docs/PRD.md.
+// Saf mantık: DOM yok; zaman (`now`), rastgelelik (`rng`) ve depo dışarıdan verilir.
 
 export const HUCRE_SAYISI = 9;
 export const SURE_SN = 30;
@@ -8,6 +7,8 @@ export const SURE_SN = 30;
 export const AHTAPOT_SURESI_MS = 1000;
 /** En iyi skorun localStorage anahtarı (değer: tam sayı, metin olarak). */
 export const EN_IYI_ANAHTAR = 'ahtapot-yakala:en-iyi';
+
+const SURE_MS = SURE_SN * 1000;
 
 export type Evre = 'baslangic' | 'oyun' | 'bitis';
 
@@ -32,6 +33,8 @@ export interface Oyun {
   readonly skor: number;
   /** Tam saniye, yukarı yuvarlanır: başta 30, oyun bitince 0. */
   readonly kalanSure: number;
+  /** Kalan süre (ms), son `guncelle` anına göre: başta 30000, bitişte 0. */
+  readonly kalanMs: number;
   /** Depodaki en iyi skor (yoksa veya bozuksa 0). Bitişte güncellenir. */
   readonly enIyi: number;
   /** Ahtapotun hücresi (0–8); görünmüyorsa (vurulduktan sonra, oyun dışında) null. */
@@ -46,6 +49,96 @@ export interface Oyun {
   guncelle(): void;
 }
 
-export function oyunOlustur(secenekler: OyunSecenekleri): Oyun {
-  throw new Error(`oyunOlustur henüz yazılmadı (#4): ${typeof secenekler}`);
+function enIyiOku(depo: Depo | undefined): number {
+  const ham = depo?.getItem(EN_IYI_ANAHTAR);
+  return ham != null && /^\d+$/.test(ham) ? Number(ham) : 0;
+}
+
+export function oyunOlustur({ rng, now, depo }: OyunSecenekleri): Oyun {
+  let evre: Evre = 'baslangic';
+  let skor = 0;
+  let enIyi = enIyiOku(depo);
+  let ahtapot: number | null = null;
+  let son = -1; // son görünen konum (vurulsa bile art arda aynı hücre olmasın)
+  let baslangicMs = 0;
+  let sonrakiGecisMs = 0;
+  let simdi = 0; // son `guncelle` anı
+
+  const ilkKonum = () => Math.floor(rng() * HUCRE_SAYISI);
+  const sonrakiKonum = () =>
+    (son + 1 + Math.floor(rng() * (HUCRE_SAYISI - 1))) % HUCRE_SAYISI;
+
+  const goster = (hucre: number) => {
+    son = hucre;
+    ahtapot = hucre;
+  };
+
+  const bitir = () => {
+    evre = 'bitis';
+    ahtapot = null;
+    if (skor > enIyi) {
+      enIyi = skor;
+      depo?.setItem(EN_IYI_ANAHTAR, String(enIyi));
+    }
+  };
+
+  const baslat = () => {
+    evre = 'oyun';
+    skor = 0;
+    baslangicMs = simdi = now();
+    sonrakiGecisMs = baslangicMs + AHTAPOT_SURESI_MS;
+    son = -1;
+    goster(ilkKonum());
+  };
+
+  const kalanMs = () => {
+    if (evre === 'baslangic') return SURE_MS;
+    if (evre === 'bitis') return 0;
+    return Math.max(0, SURE_MS - (simdi - baslangicMs));
+  };
+
+  return {
+    get evre() {
+      return evre;
+    },
+    get skor() {
+      return skor;
+    },
+    get kalanSure() {
+      return Math.ceil(kalanMs() / 1000);
+    },
+    get kalanMs() {
+      return kalanMs();
+    },
+    get enIyi() {
+      return enIyi;
+    },
+    get ahtapot() {
+      return ahtapot;
+    },
+    basla() {
+      if (evre === 'baslangic') baslat();
+    },
+    tikla(hucre) {
+      if (evre !== 'oyun' || ahtapot === null || hucre !== ahtapot) return;
+      skor += 1;
+      ahtapot = null;
+    },
+    tekrarOyna() {
+      if (evre === 'bitis') baslat();
+    },
+    guncelle() {
+      if (evre !== 'oyun') return;
+      simdi = now();
+      if (simdi - baslangicMs >= SURE_MS) {
+        bitir();
+        return;
+      }
+      // Arka plandaki sekmede kaçan geçişleri sırayla yakala.
+      while (simdi >= sonrakiGecisMs) {
+        goster(sonrakiKonum());
+        sonrakiGecisMs += AHTAPOT_SURESI_MS;
+      }
+    },
+  };
 }
