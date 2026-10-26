@@ -293,6 +293,29 @@ describe('KK-7 süre bitişi', () => {
   });
 });
 
+describe('KK-7 zamanlayıcı tetiklenmeden gelen tıklama (regresyon)', () => {
+  it('KK-7: süre dolduktan sonra guncelle çağrılmadan gelen tıklama sayılmaz', () => {
+    let t = 1_700_000_000_000;
+    const oyun = oyunOlustur({ rng: tohumluRng(1), now: () => t });
+    oyun.basla();
+    const h = ahtapotun(oyun);
+    t += SURE_MS + 50;
+    oyun.tikla(h);
+    expect(oyun.skor).toBe(0);
+    expect(oyun.evre).toBe('bitis');
+  });
+
+  it('KK-5: ahtapot geçtikten sonra guncelle çağrılmadan eski hücreye tıklamak sayılmaz', () => {
+    let t = 1_700_000_000_000;
+    const oyun = oyunOlustur({ rng: tohumluRng(1), now: () => t });
+    oyun.basla();
+    const eski = ahtapotun(oyun);
+    t += AHTAPOT_SURESI_MS + 50;
+    oyun.tikla(eski);
+    expect(oyun.skor).toBe(0);
+  });
+});
+
 // ---- KK-8: skor ve en iyi skor ----------------------------------------------
 
 describe('KK-8 skor ve en iyi skor', () => {

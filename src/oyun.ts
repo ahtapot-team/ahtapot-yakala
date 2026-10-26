@@ -97,6 +97,20 @@ export function oyunOlustur({ rng, now, depo }: OyunSecenekleri): Oyun {
     return Math.max(0, SURE_MS - (simdi - baslangicMs));
   };
 
+  function guncelle() {
+    if (evre !== 'oyun') return;
+    simdi = now();
+    if (simdi - baslangicMs >= SURE_MS) {
+      bitir();
+      return;
+    }
+    // Arka plandaki sekmede kaçan geçişleri sırayla yakala.
+    while (simdi >= sonrakiGecisMs) {
+      goster(sonrakiKonum());
+      sonrakiGecisMs += AHTAPOT_SURESI_MS;
+    }
+  }
+
   return {
     get evre() {
       return evre;
@@ -120,6 +134,7 @@ export function oyunOlustur({ rng, now, depo }: OyunSecenekleri): Oyun {
       if (evre === 'baslangic') baslat();
     },
     tikla(hucre) {
+      guncelle(); // zamanlayıcı henüz tetiklenmediyse bile süre/konum güncel olsun
       if (evre !== 'oyun' || ahtapot === null || hucre !== ahtapot) return;
       skor += 1;
       ahtapot = null;
@@ -127,18 +142,6 @@ export function oyunOlustur({ rng, now, depo }: OyunSecenekleri): Oyun {
     tekrarOyna() {
       if (evre === 'bitis') baslat();
     },
-    guncelle() {
-      if (evre !== 'oyun') return;
-      simdi = now();
-      if (simdi - baslangicMs >= SURE_MS) {
-        bitir();
-        return;
-      }
-      // Arka plandaki sekmede kaçan geçişleri sırayla yakala.
-      while (simdi >= sonrakiGecisMs) {
-        goster(sonrakiKonum());
-        sonrakiGecisMs += AHTAPOT_SURESI_MS;
-      }
-    },
+    guncelle,
   };
 }
