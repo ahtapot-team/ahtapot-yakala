@@ -33,7 +33,12 @@ jobs:
         if: github.event.action != 'closed'
         run: |
           npm ci
-          npm run build
+          # PR önizlemesi /pr/<no>/ altında yayınlanır; varlık yolları o alt yolu base almalı.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npm run build -- --base="/${{ github.event.repository.name }}/pr/${{ github.event.number }}/"
+          else
+            npm run build
+          fi
 
       - name: gh-pages dalını hazırla
         run: |
