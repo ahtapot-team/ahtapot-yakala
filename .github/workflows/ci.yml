@@ -48,10 +48,10 @@ jobs:
       - name: Build
         run: npm run build --if-present
 
+      # Runner'daki hazır Google Chrome kullanılır (playwright.ci.config.ts).
+      # `playwright install --with-deps` ~12 dk sürdüğü için kullanılmıyor.
       - name: E2E kabul testleri (Playwright)
-        run: |
-          npx playwright install --with-deps chromium
-          npm run test:e2e --if-present
+        run: npx playwright test -c playwright.ci.config.ts
 
       - name: Diff büyüklüğü (800 satır üstü 'buyuk-pr' etiketi ister)
         if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'buyuk-pr')
